@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
-project(GreeterStandalone
+project(Chip8EmuStandalone
   LANGUAGES CXX
 )
 
@@ -13,16 +13,7 @@ include(../cmake/tools.cmake)
 include(../cmake/CPM.cmake)
 
 CPMAddPackage(
-  NAME cxxopts
-  GITHUB_REPOSITORY jarro2783/cxxopts
-  VERSION 2.2.0
-  OPTIONS
-    "CXXOPTS_BUILD_EXAMPLES Off"
-    "CXXOPTS_BUILD_TESTS Off"
-)
-
-CPMAddPackage(
-  NAME Greeter
+  NAME Chip8Emu
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..
 )
 
@@ -30,11 +21,11 @@ CPMAddPackage(
 
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 
-add_executable(GreeterStandalone ${sources})
+add_executable(Chip8EmuStandalone ${sources})
 
-set_target_properties(GreeterStandalone PROPERTIES 
+set_target_properties(Chip8EmuStandalone PROPERTIES 
   CXX_STANDARD 17 
-  OUTPUT_NAME "Greeter"
+  OUTPUT_NAME "Chip8Emu"
 )
 
-target_link_libraries(GreeterStandalone Greeter cxxopts)
+target_link_libraries(Chip8EmuStandalone Chip8Emu cxxopts)

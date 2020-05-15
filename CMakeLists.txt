@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 # ---- Project ----
 
 # Note: update this to your new project's name and version
-project(Greeter 
+project(Chip8Emu
   VERSION 1.0
   LANGUAGES CXX
 )
@@ -35,21 +35,17 @@ FILE(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/
 
 # ---- Create library ----
 
-# Note: for header-only libraries change all PUBLIC flags to INTERFACE and create an interface target:
-# add_library(Greeter INTERFACE)  
-# set_target_properties(Greeter PROPERTIES INTERFACE_COMPILE_FEATURES cxx_std_17)
+add_library(Chip8Emu ${headers} ${sources})
 
-add_library(Greeter ${headers} ${sources})
+set_target_properties(Chip8Emu PROPERTIES CXX_STANDARD 17)
 
-set_target_properties(Greeter PROPERTIES CXX_STANDARD 17)
-
-# beeing a cross-platform target, we enforce standards conformance on MSVC
-target_compile_options(Greeter PUBLIC "$<$<BOOL:${MSVC}>:/permissive->")
+# being a cross-platform target, we enforce standards conformance on MSVC
+target_compile_options(Chip8Emu PUBLIC "$<$<BOOL:${MSVC}>:/permissive->")
 
 # Link dependencies (if required)
-# target_link_libraries(Greeter PUBLIC cxxopts)
+# target_link_libraries(Chip8Emu PUBLIC cxxopts)
 
-target_include_directories(Greeter
+target_include_directories(Chip8Emu
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
