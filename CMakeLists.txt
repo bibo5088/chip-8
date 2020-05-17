@@ -43,7 +43,6 @@ set_target_properties(Chip8Emu PROPERTIES CXX_STANDARD 17)
 target_compile_options(Chip8Emu PUBLIC "$<$<BOOL:${MSVC}>:/permissive->")
 
 # Link dependencies (if required)
-# target_link_libraries(Chip8Emu PUBLIC cxxopts)
 
 target_include_directories(Chip8Emu
   PUBLIC
