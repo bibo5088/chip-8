@@ -56,7 +56,7 @@ TEST_CASE("Emulator can be reset") {
 TEST_CASE("Emulator can execute opcodes") {
   Emulator emulator;
 
-  SUBCASE("00E0 should clear graphics and increment the programter counter by 2") {
+  SUBCASE("00E0 should clear graphics and increment the program counter counter by 2") {
     emulator.pc = 1;
     emulator.graphic[10] = 1;
 
@@ -142,6 +142,231 @@ TEST_CASE("Emulator can execute opcodes") {
     emulator.V[2] = 0xAB;
 
     emulator.execute_opcode(0x5120);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "6XNN should set the value of V[X] to NN and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[5] = 10;
+
+    emulator.execute_opcode(0x6504);
+
+    CHECK(emulator.V[5] == 4);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("7XNN should add NN to V[X] and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[5] = 10;
+
+    emulator.execute_opcode(0x7504);
+
+    CHECK(emulator.V[5] == 14);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "7XNN should add NN to V[X] without modifying the carry flag and increment the program "
+      "counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[5] = 250;
+    emulator.V[0xF] = 0;
+
+    emulator.execute_opcode(0x7506);
+
+    CHECK(emulator.V[5] == 0);
+    CHECK(emulator.V[0xF] == 0);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY0 should set the value of V[X] to V[Y] and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 10;
+    emulator.V[2] = 30;
+
+    emulator.execute_opcode(0x8120);
+
+    CHECK(emulator.V[1] == 30);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("8XY1 should bitwise OR V[Y] to V[X] and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 0b1010;
+    emulator.V[2] = 0b0011;
+
+    emulator.execute_opcode(0x8121);
+
+    CHECK(emulator.V[1] == 0b1011);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("8XY2 should bitwise AND V[Y] to V[X] and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 0b1010;
+    emulator.V[2] = 0b0011;
+
+    emulator.execute_opcode(0x8122);
+
+    CHECK(emulator.V[1] == 0b0010);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("8XY3 should bitwise XOR V[Y] to V[X] and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 0b1010;
+    emulator.V[2] = 0b0011;
+
+    emulator.execute_opcode(0x8123);
+
+    CHECK(emulator.V[1] == 0b1001);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("8XY4 should add V[Y] to V[X] and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 10;
+    emulator.V[2] = 20;
+
+    emulator.execute_opcode(0x8124);
+
+    CHECK(emulator.V[1] == 30);
+    CHECK(emulator.V[0xF] == 0);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY4 should add V[Y] to V[X], set V[0xF] to 1 if there's a carry and increment the program "
+      "counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 250;
+    emulator.V[2] = 6;
+
+    emulator.execute_opcode(0x8124);
+
+    CHECK(emulator.V[1] == 0);
+    CHECK(emulator.V[0xF] == 1);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY5 should subtract V[Y] to V[X], set V[0xF] to 1 if there's no borrow and increment the "
+      "program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 20;
+    emulator.V[2] = 10;
+
+    emulator.execute_opcode(0x8125);
+
+    CHECK(emulator.V[1] == 10);
+    CHECK(emulator.V[0xF] == 1);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY5 should subtract V[Y] to V[X], set V[0xF] to 0 if there's a borrow and increment the "
+      "program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 10;
+    emulator.V[2] = 20;
+
+    emulator.execute_opcode(0x8125);
+
+    CHECK(emulator.V[1] == 246);
+    CHECK(emulator.V[0xF] == 0);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY6 should set V[0xF] to V[X]'s least significant bit, shift V[X] to the right by one and "
+      "increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[0xA] = 0b101;
+    emulator.V[0xF] = 0;
+
+    emulator.execute_opcode(0x8A06);
+
+    CHECK(emulator.V[0xA] == 0b10);
+    CHECK(emulator.V[0xF] == 1);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY7 should subtract V[X] to V[Y] and store the result in V[X], set V[0xF] to 1 if there's "
+      "no borrow and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 10;
+    emulator.V[2] = 20;
+
+    emulator.execute_opcode(0x8127);
+
+    CHECK(emulator.V[1] == 10);
+    CHECK(emulator.V[0xF] == 1);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XY7 should subtract V[X] to V[Y] and store the result in V[X], set V[0xF] to 0 if there's "
+      "a borrow and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 20;
+    emulator.V[2] = 10;
+
+    emulator.execute_opcode(0x8127);
+
+    CHECK(emulator.V[1] == 246);
+    CHECK(emulator.V[0xF] == 0);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE(
+      "8XE6 should set V[0xF] to V[X]'s least significant bit, shift V[X] to the left by one and "
+      "increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[0xA] = 0b101;
+    emulator.V[0xF] = 0;
+
+    emulator.execute_opcode(0x8A0E);
+
+    CHECK(emulator.V[0xA] == 0b1010);
+    CHECK(emulator.V[0xF] == 1);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("9XY0 should increment the program counter by 4 if V[X] != V[Y]") {
+    emulator.pc = 10;
+    emulator.V[1] = 0xAA;
+    emulator.V[2] = 0xAB;
+
+    emulator.execute_opcode(0x9120);
+
+    CHECK(emulator.pc == 14);
+  }
+
+  SUBCASE("9XY0 should increment the program counter by 2 if V[X] == V[Y]") {
+    emulator.pc = 10;
+    emulator.V[1] = 0xAA;
+    emulator.V[2] = 0xAA;
+
+    emulator.execute_opcode(0x9120);
 
     CHECK(emulator.pc == 12);
   }
