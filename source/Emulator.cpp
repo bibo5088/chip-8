@@ -4,7 +4,7 @@
 
 #include "Font.h"
 
-Emulator::Emulator() { reset(); }
+Emulator::Emulator() : rng_engine(std::random_device()()), rng_distribution(0, 255) { reset(); }
 
 void Emulator::reset() {
   pc = 0x200;  // Program counter starts at 0x200
@@ -128,6 +128,22 @@ void Emulator::execute_opcode(uint16_t opcode) {
     case 0x9000:
       instruction_9XY0((opcode & 0x0F00) >> 8, (opcode & 0x00F0) >> 4);
       break;
+
+    case 0xA000:
+      instruction_ANNN((opcode & 0x0FFF));
+      break;
+
+    case 0xB000:
+      instruction_BNNN((opcode & 0x0FFF));
+      break;
+
+    case 0xC000:
+      instruction_CXNN((opcode & 0x0F00) >> 8, opcode & 0x00FF);
+      break;
+
+    case 0xD000:
+      instruction_DXYN((opcode & 0x0F00) >> 8, (opcode & 0x00F0) >> 4, opcode & 0x000F);
+      break;
   }
 }
 
@@ -200,3 +216,34 @@ void Emulator::instruction_8XYE(uint8_t reg) {
   pc += 2;
 }
 void Emulator::instruction_9XY0(uint8_t reg1, uint8_t reg2) { pc += V[reg1] != V[reg2] ? 4 : 2; }
+void Emulator::instruction_ANNN(uint16_t value) {
+  I = value;
+  pc += 2;
+}
+void Emulator::instruction_BNNN(uint16_t jump_address) { pc = V[0] + jump_address; }
+void Emulator::instruction_CXNN(uint8_t reg, uint8_t value) {
+  V[reg] = rng_distribution(rng_engine) & value;
+  pc += 2;
+}
+void Emulator::instruction_DXYN(uint8_t reg1, uint8_t reg2, uint8_t height) {
+  const auto x = V[reg1];
+  const auto y = V[reg2];
+  V[0xF] = 0;
+
+  for (int yline = 0; yline < height; yline++) {
+    const auto pixel = memory[I + yline];
+    for (int xline = 0; xline < 8; xline++) {
+      // Check if xlineTH bit of pixel is set to 1
+      if ((pixel & (0b10000000 >> xline)) != 0) {
+        const auto position = x + xline + ((y + yline) * 64);
+        // Set the flag to 1 in case of collision
+        if (graphic[position] == 1) {
+          V[0xF] = 1;
+        }
+        graphic[position] ^= 1;
+      }
+    }
+  }
+
+  pc += 2;
+}

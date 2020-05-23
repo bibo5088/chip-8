@@ -4,6 +4,7 @@
 #include <array>
 #include <cinttypes>
 #include <limits>
+#include <random>
 #include <stack>
 
 class Emulator {
@@ -28,6 +29,10 @@ public:
   // When set above zero the timers will count down to zero.
   uint8_t delay_timer;
   uint8_t sound_timer;  // Will make the system buzz sound when it reaches zero.
+
+  // RNG for instruction CXNN
+  std::mt19937 rng_engine;
+  std::uniform_int_distribution<> rng_distribution;
 
 private:
   // Instructions //
@@ -70,6 +75,19 @@ private:
   void instruction_8XYE(uint8_t reg);
   // 9XY0 Skips the next instruction if VX doesn't equal VY.
   void instruction_9XY0(uint8_t reg1, uint8_t reg2);
+  // ANNN Sets I to the address NNN.
+  void instruction_ANNN(uint16_t value);
+  // BNNN Jumps to the address NNN plus V0.
+  void instruction_BNNN(uint16_t jump_address);
+  // CXNN Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255)
+  // and NN.
+  void instruction_CXNN(uint8_t reg, uint8_t value);
+  // Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
+  // Each row of 8 pixels is read as bit-coded starting from memory location I; I value doesn’t
+  // change after the execution of this instruction. As described above, VF is set to 1 if any
+  // screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that doesn’t
+  // happen.
+  void instruction_DXYN(uint8_t reg1, uint8_t reg2, uint8_t height);
 };
 
 #endif  // CHIP8EMUTESTS_EMULATOR_H

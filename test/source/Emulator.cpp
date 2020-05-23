@@ -370,4 +370,135 @@ TEST_CASE("Emulator can execute opcodes") {
 
     CHECK(emulator.pc == 12);
   }
+
+  SUBCASE("ANNN should set I to NNN and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 0xABC;
+
+    emulator.execute_opcode(0xADEF);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 0xDEF);
+  }
+
+  SUBCASE("BNNN should set the program counter counter to V[0] + NNN") {
+    emulator.pc = 10;
+    emulator.V[0] = 5;
+
+    emulator.execute_opcode(0xB004);
+
+    CHECK(emulator.pc == 9);
+  }
+
+  SUBCASE(
+      "CNNN should set V[X] to the bitwise AND of a random integer between 0 and 255 and NN and "
+      "increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 1;
+    emulator.rng_engine.seed(145);  // Mocked for the test
+
+    emulator.execute_opcode(0xC10F);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.V[1] == 5);
+  }
+
+  SUBCASE(
+      "DXYN should draw a sprite at location V[X], V[Y] with a height of N, set the flag to 0 if "
+      "there's not collision and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 0;
+    emulator.V[2] = 0;
+
+    emulator.I = 0x300;
+    emulator.memory[0x300] = 0b01111110;
+    emulator.memory[0x300 + 1] = 0b10000001;
+    emulator.memory[0x300 + 2] = 0b01111110;
+
+    emulator.execute_opcode(0xD123);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.V[0xF] == 0);
+
+    constexpr auto get_position = [](int x, int y) -> int { return x + y * 64; };
+
+    // 0b01111110
+    CHECK(emulator.graphic[get_position(0, 0)] == 0);
+    CHECK(emulator.graphic[get_position(1, 0)] == 1);
+    CHECK(emulator.graphic[get_position(2, 0)] == 1);
+    CHECK(emulator.graphic[get_position(3, 0)] == 1);
+    CHECK(emulator.graphic[get_position(4, 0)] == 1);
+    CHECK(emulator.graphic[get_position(5, 0)] == 1);
+    CHECK(emulator.graphic[get_position(6, 0)] == 1);
+    CHECK(emulator.graphic[get_position(7, 0)] == 0);
+    // 0b10000001
+    CHECK(emulator.graphic[get_position(0, 1)] == 1);
+    CHECK(emulator.graphic[get_position(1, 1)] == 0);
+    CHECK(emulator.graphic[get_position(2, 1)] == 0);
+    CHECK(emulator.graphic[get_position(3, 1)] == 0);
+    CHECK(emulator.graphic[get_position(4, 1)] == 0);
+    CHECK(emulator.graphic[get_position(5, 1)] == 0);
+    CHECK(emulator.graphic[get_position(6, 1)] == 0);
+    CHECK(emulator.graphic[get_position(7, 1)] == 1);
+    // 0b01111110
+    CHECK(emulator.graphic[get_position(0, 2)] == 0);
+    CHECK(emulator.graphic[get_position(1, 2)] == 1);
+    CHECK(emulator.graphic[get_position(2, 2)] == 1);
+    CHECK(emulator.graphic[get_position(3, 2)] == 1);
+    CHECK(emulator.graphic[get_position(4, 2)] == 1);
+    CHECK(emulator.graphic[get_position(5, 2)] == 1);
+    CHECK(emulator.graphic[get_position(6, 2)] == 1);
+    CHECK(emulator.graphic[get_position(7, 2)] == 0);
+  }
+
+  SUBCASE(
+      "DXYN should draw a sprite at location V[X], V[Y] with a height of N, set the flag to 1 if "
+      "there's not collision and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.V[1] = 0;
+    emulator.V[2] = 0;
+
+    emulator.I = 0x300;
+    emulator.memory[0x300] = 0b01111110;
+    emulator.memory[0x300 + 1] = 0b10000001;
+    emulator.memory[0x300 + 2] = 0b01111110;
+
+    // Mock collision
+    emulator.graphic[1] = 1;
+
+    emulator.execute_opcode(0xD123);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.V[0xF] == 1);
+
+    constexpr auto get_position = [](int x, int y) -> int { return x + y * 64; };
+
+    // 0b01111110
+    CHECK(emulator.graphic[get_position(0, 0)] == 0);
+    CHECK(emulator.graphic[get_position(1, 0)] == 0);  // Unset due to collision
+    CHECK(emulator.graphic[get_position(2, 0)] == 1);
+    CHECK(emulator.graphic[get_position(3, 0)] == 1);
+    CHECK(emulator.graphic[get_position(4, 0)] == 1);
+    CHECK(emulator.graphic[get_position(5, 0)] == 1);
+    CHECK(emulator.graphic[get_position(6, 0)] == 1);
+    CHECK(emulator.graphic[get_position(7, 0)] == 0);
+    // 0b10000001
+    CHECK(emulator.graphic[get_position(0, 1)] == 1);
+    CHECK(emulator.graphic[get_position(1, 1)] == 0);
+    CHECK(emulator.graphic[get_position(2, 1)] == 0);
+    CHECK(emulator.graphic[get_position(3, 1)] == 0);
+    CHECK(emulator.graphic[get_position(4, 1)] == 0);
+    CHECK(emulator.graphic[get_position(5, 1)] == 0);
+    CHECK(emulator.graphic[get_position(6, 1)] == 0);
+    CHECK(emulator.graphic[get_position(7, 1)] == 1);
+    // 0b01111110
+    CHECK(emulator.graphic[get_position(0, 2)] == 0);
+    CHECK(emulator.graphic[get_position(1, 2)] == 1);
+    CHECK(emulator.graphic[get_position(2, 2)] == 1);
+    CHECK(emulator.graphic[get_position(3, 2)] == 1);
+    CHECK(emulator.graphic[get_position(4, 2)] == 1);
+    CHECK(emulator.graphic[get_position(5, 2)] == 1);
+    CHECK(emulator.graphic[get_position(6, 2)] == 1);
+    CHECK(emulator.graphic[get_position(7, 2)] == 0);
+  }
 }
