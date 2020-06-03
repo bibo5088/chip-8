@@ -485,12 +485,15 @@ TEST_CASE("Emulator can execute opcodes") {
       "increment the program counter counter by 2") {
     emulator.pc = 10;
     emulator.V[1] = 1;
-    emulator.rng_engine.seed(145);  // Mocked for the test
+
+    emulator.rng_engine.seed(145);
+    auto random = emulator.rng_distribution(emulator.rng_engine);
+    emulator.rng_engine.seed(145);
 
     emulator.execute_opcode(0xC10F);
 
     CHECK(emulator.pc == 12);
-    CHECK(emulator.V[1] == 5);
+    CHECK(emulator.V[1] == (random & 0x0F));
   }
 
   SUBCASE(

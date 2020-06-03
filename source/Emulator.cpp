@@ -35,7 +35,9 @@ void Emulator::reset() {
 
 void Emulator::load_rom(std::istream& rom) {
   for (auto i = 0x200; !rom.eof(); i++) {
-    rom >> memory[i];
+    char buffer;
+    rom.read(&buffer, 1);
+    memory[i] = buffer;
   }
 }
 
@@ -211,6 +213,9 @@ void Emulator::execute_opcode(uint16_t opcode) {
       }
       break;
     }
+
+    default:
+      throw std::runtime_error("Invalid opcode");
   }
 }
 
@@ -335,7 +340,7 @@ void Emulator::instruction_DXYN(uint8_t reg1, uint8_t reg2, uint8_t height) {
     for (int xline = 0; xline < 8; xline++) {
       // Check if xlineTH bit of pixel is set to 1
       if ((pixel & (0b10000000 >> xline)) != 0) {
-        const auto position = x + xline + ((y + yline) * 64);
+        const auto position = ((x + xline) % 64) + (((y + yline) % 32) * 64);
         // Set the flag to 1 in case of collision
         if (graphic[position] == 1) {
           V[0xF] = 1;
@@ -393,4 +398,3 @@ void Emulator::instruction_FX65(uint8_t reg) {
   }
   pc += 2;
 }
-
