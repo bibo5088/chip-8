@@ -33,6 +33,12 @@ void Emulator::reset() {
   delay_timer = 0;
 }
 
+void Emulator::load_rom(std::istream& rom) {
+  for (auto i = 0x200; !rom.eof(); i++) {
+    rom >> memory[i];
+  }
+}
+
 void Emulator::emulate_cycle() {
   if (!waiting_for_key) {
     // Fetch opcode
@@ -46,6 +52,10 @@ void Emulator::emulate_cycle() {
   }
   if (sound_timer > 0) {
     sound_timer--;
+
+    if (sound_timer == 0) {
+      sound_flag = true;
+    }
   }
 }
 
@@ -219,8 +229,26 @@ void Emulator::release_key(uint8_t key) {
   keys[key] = false;
 }
 
+bool Emulator::should_draw() {
+  auto result = draw_flag;
+
+  draw_flag = false;
+
+  return result;
+}
+bool Emulator::should_buzz() {
+  auto result = sound_flag;
+
+  sound_flag = false;
+
+  return result;
+}
+
+const std::array<uint8_t, 64 * 32>& Emulator::get_graphic() const { return graphic; }
+
 void Emulator::instruction_00E0() {
   graphic.fill(0);
+  draw_flag = true;
   pc += 2;
 }
 void Emulator::instruction_00EE() {
@@ -316,7 +344,7 @@ void Emulator::instruction_DXYN(uint8_t reg1, uint8_t reg2, uint8_t height) {
       }
     }
   }
-
+  draw_flag = true;
   pc += 2;
 }
 void Emulator::instruction_EX9E(uint8_t key) { pc += keys[key] ? 4 : 2; }
@@ -365,3 +393,4 @@ void Emulator::instruction_FX65(uint8_t reg) {
   }
   pc += 2;
 }
+

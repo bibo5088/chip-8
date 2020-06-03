@@ -2,11 +2,15 @@
 
 #include <doctest/doctest.h>
 
+#include <istream>
+#include <streambuf>
+
 #include "Font.h"
 
 class EmulatorTest : public Emulator {
 public:
   using Emulator::delay_timer;
+  using Emulator::draw_flag;
   using Emulator::graphic;
   using Emulator::I;
   using Emulator::keys;
@@ -14,11 +18,24 @@ public:
   using Emulator::pc;
   using Emulator::rng_distribution;
   using Emulator::rng_engine;
+  using Emulator::sound_flag;
   using Emulator::sound_timer;
   using Emulator::stack;
   using Emulator::V;
   using Emulator::waiting_for_key;
   using Emulator::waiting_for_key_register;
+};
+
+// For testing using istream
+struct membuf : std::streambuf {
+  membuf(char const* base, size_t size) {
+    char* p(const_cast<char*>(base));
+    this->setg(p, p, p + size);
+  }
+};
+struct imemstream : virtual membuf, std::istream {
+  imemstream(char const* base, size_t size)
+      : membuf(base, size), std::istream(static_cast<std::streambuf*>(this)) {}
 };
 
 TEST_CASE("Emulator can be reset") {
@@ -70,6 +87,20 @@ TEST_CASE("Emulator can be reset") {
   }
 }
 
+TEST_CASE("Emulator can load a rom") {
+  EmulatorTest emulator;
+
+  std::array<uint8_t, 4> data{0x00, 0xE0, 0x61, 0x04};
+  imemstream rom(reinterpret_cast<const char*>(data.data()), data.size());
+
+  emulator.load_rom(rom);
+
+  CHECK(emulator.memory[0x200] == 0x00);
+  CHECK(emulator.memory[0x200 + 1] == 0xE0);
+  CHECK(emulator.memory[0x200 + 2] == 0x61);
+  CHECK(emulator.memory[0x200 + 3] == 0x04);
+}
+
 TEST_CASE("Emulator can handle key presses") {
   EmulatorTest emulator;
 
@@ -112,13 +143,16 @@ TEST_CASE("Emulator can handle key presses") {
 TEST_CASE("Emulator can execute opcodes") {
   EmulatorTest emulator;
 
-  SUBCASE("00E0 should clear graphics and increment the program counter counter by 2") {
+  SUBCASE(
+      "00E0 should clear graphics, set the draw flag to true and increment the program counter "
+      "counter by 2") {
     emulator.pc = 1;
     emulator.graphic[10] = 1;
 
     emulator.execute_opcode(0x00E0);
 
     CHECK(emulator.graphic[10] == 0);
+    CHECK(emulator.draw_flag);
     CHECK(emulator.pc == 3);
   }
 
@@ -461,7 +495,8 @@ TEST_CASE("Emulator can execute opcodes") {
 
   SUBCASE(
       "DXYN should draw a sprite at location V[X], V[Y] with a height of N, set the flag to 0 if "
-      "there's not collision and increment the program counter counter by 2") {
+      "there's not collision, set the draw flag to true and increment the program counter counter "
+      "by 2") {
     emulator.pc = 10;
     emulator.V[1] = 0;
     emulator.V[2] = 0;
@@ -475,6 +510,7 @@ TEST_CASE("Emulator can execute opcodes") {
 
     CHECK(emulator.pc == 12);
     CHECK(emulator.V[0xF] == 0);
+    CHECK(emulator.draw_flag);
 
     constexpr auto get_position = [](int x, int y) -> int { return x + y * 64; };
 
@@ -509,7 +545,8 @@ TEST_CASE("Emulator can execute opcodes") {
 
   SUBCASE(
       "DXYN should draw a sprite at location V[X], V[Y] with a height of N, set the flag to 1 if "
-      "there's not collision and increment the program counter counter by 2") {
+      "there's not collision, set the draw flag to true and increment the program counter counter "
+      "by 2") {
     emulator.pc = 10;
     emulator.V[1] = 0;
     emulator.V[2] = 0;
@@ -526,6 +563,7 @@ TEST_CASE("Emulator can execute opcodes") {
 
     CHECK(emulator.pc == 12);
     CHECK(emulator.V[0xF] == 1);
+    CHECK(emulator.draw_flag);
 
     constexpr auto get_position = [](int x, int y) -> int { return x + y * 64; };
 
@@ -755,5 +793,23 @@ TEST_CASE("Emulator can execute opcodes") {
     CHECK(emulator.V[3] == 30);
     CHECK(emulator.V[4] == 40);
     CHECK(emulator.V[5] == 50);
+  }
+}
+
+TEST_CASE("Emulator has flags") {
+  EmulatorTest emulator;
+
+  SUBCASE("The draw flag should be set to false after checking it") {
+    emulator.draw_flag = true;
+
+    CHECK(emulator.should_draw());
+    CHECK(!emulator.should_draw());
+  }
+
+  SUBCASE("The sound flag should be set to false after checking it") {
+    emulator.sound_flag = true;
+
+    CHECK(emulator.should_buzz());
+    CHECK(!emulator.should_buzz());
   }
 }

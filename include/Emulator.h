@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cinttypes>
+#include <istream>
 #include <limits>
 #include <random>
 #include <stack>
@@ -14,6 +15,8 @@ public:
 public:
   void reset();
 
+  void load_rom(std::istream& rom);
+
   void emulate_cycle();
 
   void execute_opcode(uint16_t opcode);
@@ -22,11 +25,22 @@ public:
 
   void release_key(uint8_t key);
 
+  bool should_draw();
+  bool should_buzz();
+
+  const std::array<uint8_t, 64 * 32>& get_graphic() const;
+
   friend class EmulatorTest;
 
 private:
+  bool draw_flag = false;
+  bool sound_flag = false;
+
   std::array<uint8_t, 4096> memory;
-  std::array<uint8_t, 64 * 32> graphic;  // 2048 pixel screen
+  std::array<uint8_t, 64 * 32> graphic;
+
+private:
+  // 2048 pixel screen
 
   std::array<uint8_t, 16> V;   // Registers
   uint16_t I;                  // Index register

@@ -27,3 +27,4 @@ set_target_properties(Chip8EmuStandalone PROPERTIES
   CXX_STANDARD 17 
   OUTPUT_NAME "Chip8Emu"
 )
+target_link_libraries(Chip8EmuStandalone PRIVATE Chip8Emu)
