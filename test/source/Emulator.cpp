@@ -4,8 +4,25 @@
 
 #include "Font.h"
 
+class EmulatorTest : public Emulator {
+public:
+  using Emulator::delay_timer;
+  using Emulator::graphic;
+  using Emulator::I;
+  using Emulator::keys;
+  using Emulator::memory;
+  using Emulator::pc;
+  using Emulator::rng_distribution;
+  using Emulator::rng_engine;
+  using Emulator::sound_timer;
+  using Emulator::stack;
+  using Emulator::V;
+  using Emulator::waiting_for_key;
+  using Emulator::waiting_for_key_register;
+};
+
 TEST_CASE("Emulator can be reset") {
-  Emulator emulator;
+  EmulatorTest emulator;
 
   emulator.pc = 185;
   emulator.I = 1240;
@@ -53,8 +70,47 @@ TEST_CASE("Emulator can be reset") {
   }
 }
 
+TEST_CASE("Emulator can handle key presses") {
+  EmulatorTest emulator;
+
+  SUBCASE("Pressing a key") {
+    emulator.keys[1] = false;
+    emulator.waiting_for_key = false;
+    emulator.waiting_for_key_register = 5;
+    emulator.V[5] = 50;
+
+    SUBCASE("should set it's key to true") {
+      emulator.press_key(1);
+
+      CHECK(emulator.keys[1]);
+      CHECK(!emulator.waiting_for_key);
+      CHECK(emulator.V[5] == 50);
+    }
+
+    SUBCASE(
+        "should set waiting_for_key to false and V[waiting_for_key_register] to the "
+        "key if waiting_for_key is true") {
+      emulator.waiting_for_key = true;
+
+      emulator.press_key(1);
+
+      CHECK(emulator.keys[1]);
+      CHECK(!emulator.waiting_for_key);
+      CHECK(emulator.V[5] == 1);
+    }
+  }
+
+  SUBCASE("Releasing a key should set it's key to false") {
+    emulator.keys[1] = true;
+
+    emulator.release_key(1);
+
+    CHECK(!emulator.keys[1]);
+  }
+}
+
 TEST_CASE("Emulator can execute opcodes") {
-  Emulator emulator;
+  EmulatorTest emulator;
 
   SUBCASE("00E0 should clear graphics and increment the program counter counter by 2") {
     emulator.pc = 1;
@@ -500,5 +556,204 @@ TEST_CASE("Emulator can execute opcodes") {
     CHECK(emulator.graphic[get_position(5, 2)] == 1);
     CHECK(emulator.graphic[get_position(6, 2)] == 1);
     CHECK(emulator.graphic[get_position(7, 2)] == 0);
+  }
+
+  SUBCASE("EX9E should increment the program counter by 4 if key X is pressed") {
+    emulator.pc = 10;
+    emulator.keys[1] = true;
+
+    emulator.execute_opcode(0xE19E);
+
+    CHECK(emulator.pc == 14);
+  }
+
+  SUBCASE("EX9E should increment the program counter by 2 if key X is not pressed") {
+    emulator.pc = 10;
+    emulator.keys[1] = false;
+
+    emulator.execute_opcode(0xE19E);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("EXA1 should increment the program counter by 2 if key X is pressed") {
+    emulator.pc = 10;
+    emulator.keys[1] = true;
+
+    emulator.execute_opcode(0xE1A1);
+
+    CHECK(emulator.pc == 12);
+  }
+
+  SUBCASE("EXA1 should increment the program counter by 4 if key X is not pressed") {
+    emulator.pc = 10;
+    emulator.keys[1] = false;
+
+    emulator.execute_opcode(0xE1A1);
+
+    CHECK(emulator.pc == 14);
+  }
+
+  SUBCASE(
+      "FX07 should set V[X] to the delay timer and increment the program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.delay_timer = 100;
+    emulator.V[4] = 47;
+
+    emulator.execute_opcode(0xF407);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.V[4] == 100);
+  }
+
+  SUBCASE(
+      "FX0A should set waiting_for_key to true and waiting_for_key_register to X and increment the "
+      "program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.waiting_for_key = false;
+    emulator.waiting_for_key_register = 0xF;
+
+    emulator.execute_opcode(0xF40A);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.waiting_for_key);
+    CHECK(emulator.waiting_for_key_register == 4);
+  }
+
+  SUBCASE("FX15 should set the delay timer to V[X] and increment program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.delay_timer = 0;
+    emulator.V[8] = 60;
+
+    emulator.execute_opcode(0xF815);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.delay_timer == 60);
+  }
+
+  SUBCASE("FX18 should set the sound  timer to V[X] and increment program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.sound_timer = 0;
+    emulator.V[8] = 60;
+
+    emulator.execute_opcode(0xF818);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.sound_timer == 60);
+  }
+
+  SUBCASE(
+      "FX1E should add V[X] to I, set set V[0xF] to 0 if there's no range overflow and increment "
+      "program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 70;
+    emulator.V[7] = 30;
+    emulator.V[0xF] = 1;
+
+    emulator.execute_opcode(0xF71E);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 100);
+    CHECK(emulator.V[0xF] == 0);
+  }
+
+  SUBCASE(
+      "FX1E should add V[X] to I, set set V[0xF] to 1 if there's a range overflow and increment "
+      "program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 0xFFE;
+    emulator.V[7] = 10;
+    emulator.V[0xF] = 0;
+
+    emulator.execute_opcode(0xF71E);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 4104);
+    CHECK(emulator.V[0xF] == 1);
+  }
+
+  SUBCASE(
+      "FX29 should set I to the location of the character V[X] (chip 8 font) and increment program "
+      "counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 80;
+    emulator.V[0] = 5;
+
+    emulator.execute_opcode(0xF029);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 25);
+  }
+
+  SUBCASE(
+      "FX33 should store the binary-coded decimal representation of V[X] in memory starting at "
+      "address I and increment program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 100;
+    emulator.V[0xE] = 254;
+
+    emulator.execute_opcode(0xFE33);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 100);
+    CHECK(emulator.memory[100] == 2);
+    CHECK(emulator.memory[101] == 5);
+    CHECK(emulator.memory[102] == 4);
+  }
+
+  SUBCASE(
+      "FX55 should store V[0] to V[X] in memory starting at address I and increment program "
+      "counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 100;
+    emulator.V[0] = 255;
+    emulator.V[1] = 10;
+    emulator.V[2] = 20;
+    emulator.V[3] = 30;
+    emulator.V[4] = 40;
+    emulator.V[5] = 50;
+
+    emulator.execute_opcode(0xF555);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 100);
+    CHECK(emulator.memory[100] == 255);
+    CHECK(emulator.memory[101] == 10);
+    CHECK(emulator.memory[102] == 20);
+    CHECK(emulator.memory[103] == 30);
+    CHECK(emulator.memory[104] == 40);
+    CHECK(emulator.memory[105] == 50);
+  }
+
+  SUBCASE(
+      "FX65 should fill V[0] to V[X] with values from memory starting at address I and increment "
+      "program counter counter by 2") {
+    emulator.pc = 10;
+    emulator.I = 100;
+
+    emulator.V[0] = 0;
+    emulator.V[1] = 0;
+    emulator.V[2] = 0;
+    emulator.V[3] = 0;
+    emulator.V[4] = 0;
+    emulator.V[5] = 0;
+
+    emulator.memory[100] = 255;
+    emulator.memory[101] = 10;
+    emulator.memory[102] = 20;
+    emulator.memory[103] = 30;
+    emulator.memory[104] = 40;
+    emulator.memory[105] = 50;
+
+    emulator.execute_opcode(0xF565);
+
+    CHECK(emulator.pc == 12);
+    CHECK(emulator.I == 100);
+    CHECK(emulator.V[0] == 255);
+    CHECK(emulator.V[1] == 10);
+    CHECK(emulator.V[2] == 20);
+    CHECK(emulator.V[3] == 30);
+    CHECK(emulator.V[4] == 40);
+    CHECK(emulator.V[5] == 50);
   }
 }

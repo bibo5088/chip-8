@@ -1,6 +1,7 @@
 #include "Emulator.h"
 
 #include <algorithm>
+#include <cassert>
 
 #include "Font.h"
 
@@ -33,11 +34,12 @@ void Emulator::reset() {
 }
 
 void Emulator::emulate_cycle() {
-  // Fetch opcode
-  uint16_t opcode = memory[pc] << 8 | memory[pc + 1];
+  if (!waiting_for_key) {
+    // Fetch opcode
+    uint16_t opcode = memory[pc] << 8 | memory[pc + 1];
 
-  execute_opcode(opcode);
-
+    execute_opcode(opcode);
+  }
   // Tick timers
   if (delay_timer > 0) {
     delay_timer--;
@@ -144,7 +146,77 @@ void Emulator::execute_opcode(uint16_t opcode) {
     case 0xD000:
       instruction_DXYN((opcode & 0x0F00) >> 8, (opcode & 0x00F0) >> 4, opcode & 0x000F);
       break;
+
+    case 0xE000: {
+      switch (opcode & 0x000F) {
+        case 0x000E:
+          instruction_EX9E((opcode & 0x0F00) >> 8);
+          break;
+        case 0x0001:
+          instruction_EXA1((opcode & 0x0F00) >> 8);
+          break;
+      }
+      break;
+    }
+
+    case 0xF000: {
+      const uint8_t reg = (opcode & 0x0F00) >> 8;
+
+      switch (opcode & 0x00FF) {
+        case 0x0007:
+          instruction_FX07(reg);
+          break;
+
+        case 0x000A:
+          instruction_FX0A(reg);
+          break;
+
+        case 0x0015:
+          instruction_FX15(reg);
+          break;
+
+        case 0x0018:
+          instruction_FX18(reg);
+          break;
+
+        case 0x001E:
+          instruction_FX1E(reg);
+          break;
+
+        case 0x0029:
+          instruction_FX29(reg);
+          break;
+
+        case 0x0033:
+          instruction_FX33(reg);
+          break;
+
+        case 0x0055:
+          instruction_FX55(reg);
+          break;
+
+        case 0x0065:
+          instruction_FX65(reg);
+          break;
+      }
+      break;
+    }
   }
+}
+
+void Emulator::press_key(uint8_t key) {
+  assert(key <= 0xF);
+
+  keys[key] = true;
+  if (waiting_for_key) {
+    V[waiting_for_key_register] = key;
+    waiting_for_key = false;
+  }
+}
+void Emulator::release_key(uint8_t key) {
+  assert(key <= 0xF);
+
+  keys[key] = false;
 }
 
 void Emulator::instruction_00E0() {
@@ -245,5 +317,51 @@ void Emulator::instruction_DXYN(uint8_t reg1, uint8_t reg2, uint8_t height) {
     }
   }
 
+  pc += 2;
+}
+void Emulator::instruction_EX9E(uint8_t key) { pc += keys[key] ? 4 : 2; }
+void Emulator::instruction_EXA1(uint8_t key) { pc += keys[key] ? 2 : 4; }
+void Emulator::instruction_FX07(uint8_t reg) {
+  V[reg] = delay_timer;
+  pc += 2;
+}
+void Emulator::instruction_FX0A(uint8_t reg) {
+  waiting_for_key = true;
+  waiting_for_key_register = reg;
+  pc += 2;
+}
+void Emulator::instruction_FX15(uint8_t reg) {
+  delay_timer = V[reg];
+  pc += 2;
+}
+void Emulator::instruction_FX18(uint8_t reg) {
+  sound_timer = V[reg];
+  pc += 2;
+}
+void Emulator::instruction_FX1E(uint8_t reg) {
+  I += V[reg];
+  V[0xF] = I > 0xFFF ? 1 : 0;
+  pc += 2;
+}
+void Emulator::instruction_FX29(uint8_t reg) {
+  I = V[reg] * 5;  // Font is loader in memory at address 0 and each character is 5 ints
+  pc += 2;
+}
+void Emulator::instruction_FX33(uint8_t reg) {
+  memory[I] = V[reg] / 100;
+  memory[I + 1] = (V[reg] / 10) % 10;
+  memory[I + 2] = (V[reg] % 100) % 10;
+  pc += 2;
+}
+void Emulator::instruction_FX55(uint8_t reg) {
+  for (auto i = 0; i <= reg; i++) {
+    memory[I + i] = V[i];
+  }
+  pc += 2;
+}
+void Emulator::instruction_FX65(uint8_t reg) {
+  for (auto i = 0; i <= reg; i++) {
+    V[i] = memory[I + i];
+  }
   pc += 2;
 }
