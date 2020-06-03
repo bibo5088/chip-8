@@ -30,3 +30,4 @@ set_target_properties(Chip8EmuStandalone PROPERTIES
   OUTPUT_NAME "Chip8Emu"
 )
 target_link_libraries(Chip8EmuStandalone PRIVATE Chip8Emu SDL2::SDL2main SDL2::SDL2-static)
+target_compile_definitions(Chip8EmuStandalone PRIVATE _USE_MATH_DEFINES)

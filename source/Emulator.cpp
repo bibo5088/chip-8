@@ -316,7 +316,7 @@ void Emulator::instruction_8XY7(uint8_t reg1, uint8_t reg2) {
   pc += 2;
 }
 void Emulator::instruction_8XYE(uint8_t reg) {
-  V[0xF] = V[reg] & 0x1;
+  V[0xF] = V[reg] >> 7;
   V[reg] <<= 1;
   pc += 2;
 }

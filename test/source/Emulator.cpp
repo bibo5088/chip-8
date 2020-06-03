@@ -427,15 +427,15 @@ TEST_CASE("Emulator can execute opcodes") {
   }
 
   SUBCASE(
-      "8XE6 should set V[0xF] to V[X]'s least significant bit, shift V[X] to the left by one and "
+      "8XYE should set V[0xF] to V[X]'s most significant significant bit, shift V[X] to the left by one and "
       "increment the program counter counter by 2") {
     emulator.pc = 10;
-    emulator.V[0xA] = 0b101;
+    emulator.V[0xA] = 0b10001100;
     emulator.V[0xF] = 0;
 
     emulator.execute_opcode(0x8A0E);
 
-    CHECK(emulator.V[0xA] == 0b1010);
+    CHECK(emulator.V[0xA] == 0b00011000);
     CHECK(emulator.V[0xF] == 1);
 
     CHECK(emulator.pc == 12);
